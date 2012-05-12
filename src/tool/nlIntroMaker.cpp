@@ -131,7 +131,7 @@ static bool exportPath(nlEngineContext* cxt )
         dataFile.write(line.toLatin1());
         /* pathの構成ポイントを出力 */
         dataFile.write("{\n");
-        for( int j=0;j<MAX_PATHPOINT_NUM;++j)
+        for( int j=0;j<pathLen;++j)
         {
             QString line;
             line.sprintf(
