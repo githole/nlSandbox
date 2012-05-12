@@ -184,17 +184,20 @@ static bool exportRT()
     dataFile.write("/* RenderTarget */\n");
     dataFile.write("static const RenderTargetDescs g_rtDescs =\n");
     dataFile.write("{\n");
-    for( int i=0;i<MAX_RENDERTARGET_NUM;++i)
+    dataFile.write("\t{\n");
+    for( int i=0;i<descs.numRT+1;++i)
     {
-        lineData.sprintf("\t%d,",descs.rtDescs[i].scaleByBackbuffer);
+        lineData.sprintf("\t\t%d,",descs.rtDescs[i].scaleByBackbuffer);
         dataFile.write(lineData.toLocal8Bit());
         lineData.sprintf("(DXGI_FORMAT)%d,\n",descs.rtDescs[i].format);
         dataFile.write(lineData.toLocal8Bit());
     }
+    dataFile.write("\t},\n");
     lineData.sprintf("\t%d,\n",descs.numRT );
     dataFile.write(lineData.toLocal8Bit());
     /**/
-    for( int i=0;i<MAX_RENDERTARGET_NUM;++i)
+    dataFile.write("\t{\n");
+    for( int i=0;i<descs.numDS+1;++i)
     {
         QString lineData;
         lineData.sprintf("\t%d,",descs.dsDescs[i].scaleByBackbuffer);
@@ -202,6 +205,7 @@ static bool exportRT()
         lineData.sprintf("(DXGI_FORMAT)%d,\n",descs.dsDescs[i].format);
         dataFile.write(lineData.toLocal8Bit());
     }
+    dataFile.write("\t},\n");
     lineData.sprintf("\t%d,\n",descs.numDS );
 
     dataFile.write(lineData.toLocal8Bit());
