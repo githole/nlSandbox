@@ -22,7 +22,7 @@ static bool exportConfing();
 static bool Build();
 static bool compress();
 static bool showResult();
-const char* dataPath = "../../src/generated/intro_data.h";
+const char* dataPath = "../src/generated/intro_data.h";
 /**/
 void nlIntroMaker::make()
 {
