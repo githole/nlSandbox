@@ -7,3 +7,5 @@ project/nl_stduio64.ncb
 project/nl_stduio64.suo
 bin/nlSandbox.exe
 bin/nlSandbox_d.exe
+bin/intro.exe
+src/generated/*
