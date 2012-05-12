@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/nlSandbox">
+        <file alias="skin">resource/skin.qss</file>
+    </qresource>
+</RCC>

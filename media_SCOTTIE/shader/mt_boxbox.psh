@@ -1,0 +1,40 @@
+/**
+* @brief 
+* RT0: R8G8B8A8
+* C0:  未使用
+* C1:  未使用
+* C2:  Ambient(Vec4)
+       Diffuse(Vec4)
+       LightDir(Vec4)
+*/
+/* REPLACE PO2,PO2 */
+/* REPLACE VO_EF_DEPTH_NORMAL,VO_EF_DEPTH_NORMAL */
+/* オブジェクト毎 */
+cbuffer Const2 : register(b2)
+{ 
+	f4 ambinet;
+	f4 diffuse;
+	f4 lightDir;
+	f4 pack;
+};
+/**/
+PO1 main(VO_POS_NORMAL_COLOR i)
+{
+	PO1 r;
+	f4 n = normalize(i.N);
+	f1 dy = max((dot(f3(0,0,1), n)+1)*.5, 0) * 0.5;
+	f1 sx = sin((i.P.z-100*(1-cos(sceneTime.x*0.105*PI)))/150) * 0.5;
+	dy += sx;
+	f1 lz = 0.5*(cos((i.P.x)/200)*cos((i.P.y)/200)*cos((i.P.z)/200))+0.4;
+	f1 a = lz;
+	// r.c0 = f4(99/255.0,45/255.0,255/255.0,1); // f4(61/255.0,71/255.0,191/255.0,1);
+	f1 scl = 300.0 * (1.00001 - sceneTime.x);
+	f3 of = f3(cos(sceneTime.x*10*PI)*scl, cos(sceneTime.x*12*PI)*scl, sin(-sceneTime.x*8*PI)*scl);
+	f1 xrad = max(-PI, min(PI,(i.C.x + of.x)/2)) ;
+	f1 yrad = max(-PI, min(PI,(i.C.y + of.y)/2)) ;
+	f1 zrad = max(-PI, min(PI,(i.C.z + of.z)/2)) ;
+	f1 bf = max(0, cos(xrad.x)*sin(yrad.x)+sin(zrad.x));
+	f1 bt = max(0,sin(sceneTime.x * 32 * PI)) * 0.15;
+	r.c0 = f4(dy,dy,dy,1)*0.6 + (bf.x*bf.x + bt.x)* f4(99/255.0,45/255.0,255/255.0,0);
+    return r;
+}

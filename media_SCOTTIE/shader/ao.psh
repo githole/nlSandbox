@@ -1,0 +1,210 @@
+// porting of Ambient Occlusion to HLSL/XNA by XELF 2009
+// [http://kioku.sys-k.net/4kgfxmon/]
+// porting GLSL by kioku based on syoyo's AS3 Ambient Occlusion
+// [http://lucille.atso-net.jp/blog/?p=638]
+
+/* オブジェクト毎 */
+cbuffer Const2 : register(b2)
+{ 
+	f4 time;
+	f4 pack[3];
+};
+struct Ray
+{
+	float3 org;
+	float3 dir;
+};
+struct Sphere
+{
+	float3 center;
+	float radius;
+};
+struct Plane
+{
+	float3 p;
+	float3 n;
+};
+struct Intersection
+{
+    float t;
+    float3 p;
+    float3 n;
+    int hit;
+};
+static int seed = 0;
+void shpere_intersect(Sphere s, Ray ray, inout Intersection isect)
+{
+    float3 rs = ray.org - s.center;
+    float B = dot(rs, ray.dir);
+    float C = dot(rs, rs) - (s.radius * s.radius);
+    float D = B * B - C;
+
+    if (D > 0.0)
+    {
+		float t = -B - sqrt(D);
+		if ( (t > 0.0) && (t < isect.t) )
+		{
+			isect.t = t;
+			isect.hit = 1;
+			isect.p = ray.org + ray.dir * t;
+			isect.n = normalize(isect.p - s.center);
+		}
+	}
+}
+
+void plane_intersect(Plane pl, Ray ray, inout Intersection isect)
+{
+	float d = -dot(pl.p, pl.n);
+	float v = dot(ray.dir, pl.n);
+	if (abs(v) < 1.0e-6){}
+	else
+	{
+		float t = -(dot(ray.org, pl.n) + d) / v;
+		if ( (t > 0.0) && (t < isect.t) )
+		{
+			isect.hit = 1;
+			isect.t   = t;
+			isect.n   = pl.n;
+			isect.p = ray.org + t * ray.dir;
+		}
+	}
+}
+void Intersect(Ray r, inout Intersection i,Sphere sphere[3],Plane plane)
+{
+	for (int c = 0; c < 3; c++)
+	{
+		shpere_intersect(sphere[c], r, i);
+	}
+	plane_intersect(plane, r, i);
+}
+static const float3 basisTable[8] = {
+	float3(1, 0, 0), float3(1, 0, 0), float3(0, 1, 0), float3(1, 0, 0),
+	float3(0, 0, 1), float3(1, 0, 0), float3(0, 1, 0), float3(1, 0, 0),
+};
+void orthoBasis(out float3x3 basis, float3 n)
+{
+	basis[2] = n;
+	basis[1] = basisTable[dot(abs(n) < 0.6, float3(1, 2, 4))];
+
+	basis[0] = cross(basis[1], basis[2]);
+	basis[0] = normalize(basis[0]);
+
+	basis[1] = cross(basis[2], basis[0]);
+	basis[1] = normalize(basis[1]);
+}
+
+float random()
+{
+	seed = int(fmod(float(seed)*1364.0+626.0,509.0));
+	return float(seed)/509.0;
+}
+
+float3 computeAO(inout Intersection isect,Sphere sphere[3], Plane plane)
+{
+	const int ntheta = 4;
+	const int nphi   = 4;
+	const float eps  = 0.0001;
+    float3 p = isect.p + eps * isect.n;
+    float3x3 basis;
+    orthoBasis(basis, isect.n);
+    float occlusion = 0.0;
+    for (int j = 0; j < ntheta; j++)
+    {
+		for (int i = 0; i < nphi; i++)
+		{
+			float r = random();
+			float phi = 2.0 * 3.141592 * random();
+			float3 ref;
+			float s, c;
+			sincos(phi, s, c);
+			ref.x = c * sqrt(1.0 - r);
+			ref.y = s * sqrt(1.0 - r);
+			ref.z = sqrt(r);
+			Ray ray;
+			ray.org = p;
+			ray.dir = mul(ref, basis);
+			Intersection occIsect;
+			occIsect.hit = 0;
+			occIsect.t = 1.0e30;
+			occIsect.n = occIsect.p = float3(0, 0, 0);
+			Intersect(ray, occIsect,sphere,plane);
+			occlusion += (occIsect.hit != 0);
+		}
+	}
+	occlusion = (float(ntheta * nphi) - occlusion) / float(ntheta * nphi);
+	return occlusion.xxx;
+}
+
+/**/	
+f4 main(
+	ScreenVO input ) :SV_Target0
+{
+	f1 t = saturate(time.x);
+	f4 col;
+	/* ローディングバーを表示する */
+	f1 x = input.uv.x;
+	f1 y = input.uv.y;
+	f2 ldCen = f2(0.5,0.005);
+	f2 ldRct = f2(1.0,0.005);
+	if( ((ldCen.x-ldRct.x*0.5) <x) && (x < (ldCen.x-ldRct.x*0.5)+t) && (abs(y-ldCen.y) < ldRct.y) ) 
+	//(abs(x-ldCen.x)*ldRct.x<t*0.5) && (abs(y-ldCen.y) < ldRct.y) )
+	{
+		col = f4(1,1,1,1);
+	}
+	else
+	{
+		x = 1.0-input.uv.x;
+        /**/
+		/* 詳細度を計算 */
+		f2 detail = pow(0.1,(t+0.4)*4);
+		/* 詳細度をランク付け */
+		//if( t < 0.25 )
+		//{ detail = 0.1; }
+		//else if( t < 0.5 )
+		//{ detail = 0.01; }
+		//else if( t < 0.75 )
+		//{ detail = 0.001; }
+		//else
+		//{ detail = 0.0001; }
+		
+        //f2 detail = pow(0.1,10);
+		/* 詳細度に応じサンプリングするブロックを小さくする */
+		f2 uv = -input.uv;
+        uv += 0.5;
+        uv = (int2(uv/detail)+0.5)*detail;
+        /**/
+		float aspectRatio = 1.77777;
+        Sphere sphere[3];
+        Plane plane;
+        /**/
+		float3 org = float3(0,0,0);
+        float3 dir = normalize(-float3(-uv.x*aspectRatio, -uv.y, 1));
+        sphere[0].center = float3(-2.0, 0.0, -3.5);
+        sphere[0].radius = 0.5;
+        sphere[1].center = float3(-0.5, 0.0, -3.0);
+        sphere[1].radius = 0.5;
+        sphere[2].center = float3(1.0, 0.0, -2.2);
+        sphere[2].radius = 0.5;
+        plane.p = float3(0,-0.5, 0);
+        plane.n = float3(0, 1.0, 0);
+        Intersection i;
+        i.hit = 0;
+        i.t = 1.0e30;
+        i.n = i.p = float3(0, 0, 0);
+        Ray r;
+        r.org = org;
+        r.dir = normalize(dir);
+        seed = (int(fmod((10 + dir.x) * (10 + dir.y) * 4525434.0, 65536.0)));
+        col = float4(0,0,0,0);
+        Intersect(r, i,sphere,plane);
+        if (i.hit != 0)
+		{
+            col.rgb = computeAO(i,sphere,plane);
+        }
+	}
+	/* 最初と最後はブラックインアウト */
+	f1 sp = 5.0;
+	f4 b = saturate(min(t*sp,sp*(1-t)));
+	//return time;
+	return b*col;
+}

@@ -1,0 +1,33 @@
+/**
+* @brief 
+* RT0: R8G8B8A8
+* C0:  未使用
+* C1:  未使用
+* C2:  Ambient(Vec4)
+       Diffuse(Vec4)
+       LightDir(Vec4)
+*/
+/* REPLACE PO2,PO2 */
+/* REPLACE VO_EF_DEPTH_NORMAL,VO_EF_DEPTH_NORMAL */
+/* オブジェクト毎 */
+cbuffer Const2 : register(b2)
+{ 
+	f4 ambinet;
+	f4 diffuse;
+	f4 lightDir;
+	f4 pack;
+};
+/**/
+PO1 main(VO_POS_NORMAL_COLOR i)
+{
+	PO1 r;
+	f4 n = normalize(i.N);
+	f1 dy = max(dot(f3(0,-1,0), n), 0);
+	//f1 sy = sin(abs(i.P.y)/35);
+	f1 sy = sin(abs(i.P.y+20)/60) * 0.9;
+	f1 lz = max(0,cos((i.P.y - 10)/12)) + sy*sy;
+	f1 lt = sqrt(i.P.x * i.P.x + i.P.z * i.P.z * 2) * 0.03 + 0.3;
+	f1 a = min(0.9,(lz + lz*dy*dy*0.8) * lt);
+	r.c0 = f4(204/255.0*a,201/255.0*a,209/255.0*a,1);
+    return r;
+}

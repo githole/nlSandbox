@@ -1,0 +1,12 @@
+#scenetime
+15360
+#curvetype
+CATMULROM
+#numkeyframe
+2
+#keyframes
+0
+1
+#positions
+-12.4195 4.45378 -5.76604
+15.2044 5.03901 6.44644

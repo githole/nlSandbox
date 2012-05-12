@@ -1,0 +1,17 @@
+/** 
+* ==========================================
+* @brief ブラックインアウト
+*        アルファブレンドを用いてScreenPolyする必要あり
+* ==========================================
+*/
+/* REPLACE ScreenVO,ScreenVO */
+
+/* オブジェクト毎 */
+cbuffer Const2 : register(b2)
+{ float4 blackness; }
+/**/
+f4 main( ScreenVO input ):SV_Target0
+{
+	return f4(0,0,0,blackness.x);
+    //return f4(0,0,0,blackness.x);
+}

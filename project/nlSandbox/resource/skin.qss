@@ -1,0 +1,137 @@
+	
+
+/*------------------------------------------------------*/
+QDockWidget 
+{
+}
+/*------------------------------------------------------*/
+ QMenu {}
+ QMenu::item {}
+ QMenu::item:selected {}
+ QMenuBar {}
+ QMenuBar::item 
+ {
+     background: transparent;
+ }
+ QMenuBar::item:selected {}
+ QMenuBar::item:pressed {}
+
+/*------------------------------------------------------*/
+QTabWidget::pane {
+     background: transparent;
+}
+
+ QTabWidget::tab-bar {
+     background: transparent;
+ }
+ 
+ QTabBar::tab {
+     background: transparent;
+ }
+
+ QTabBar::tab:selected, QTabBar::tab:hover {
+     background: transparent;
+ }
+
+ QTabBar::tab:selected {
+     background: transparent;
+ }
+
+ QTabBar::tab:!selected {
+     background: transparent;
+ }
+
+/*------------------------------------------------------*/	 
+QLineEdit::enabled {
+	background: rgb(85,85,90);
+}
+
+/*------------------------------------------------------*/	 
+QPushButton {}
+QPushButton:hover {}
+QPushButton:pressed {}
+
+/*------------------------------------------------------*/
+QTextEdit {}
+QTextEdit:hover {}
+QTextEdit:pressed {}
+
+/*------------------------------------------------------*/
+ QSpinBox {}
+ QSpinBox::up-button {}
+ QSpinBox::up-button:hover {}
+ QSpinBox::up-button:pressed {}
+ QSpinBox::up-arrow {}
+ QSpinBox::down-button {}
+ QSpinBox::down-button:hover {}
+ QSpinBox::down-button:pressed {}
+ QSpinBox::down-arrow {}
+ 
+ /*------------------------------------------------------*/
+ QDoubleSpinBox {}
+ QDoubleSpinBox::enabled {
+	background: rgb(85,85,90);
+ }
+ QDoubleSpinBox::up-button {}
+ QDoubleSpinBox::up-button:hover {}
+ QDoubleSpinBox::up-button:pressed {}
+ QDoubleSpinBox::up-arrow {}
+ QDoubleSpinBox::down-button {}
+ QDoubleSpinBox::down-button:hover {}
+ QDoubleSpinBox::down-button:pressed {}
+ QDoubleSpinBox::down-arrow {}
+ 
+ /*------------------------------------------------------*/
+  QCheckBox {
+     spacing: 5px;
+ }
+
+ QCheckBox::indicator {
+     width: 13px;
+     height: 13px;
+ }
+
+ QCheckBox::indicator:unchecked {
+   background-color: rgb(105,105,100);
+ }
+
+ QCheckBox::indicator:unchecked:hover {
+ }
+
+ QCheckBox::indicator:unchecked:pressed {
+ }
+
+ QCheckBox::indicator:checked {
+	background-color: rgb(45,45,45);
+ }
+
+ QCheckBox::indicator:checked:hover {
+ }
+
+ QCheckBox::indicator:checked:pressed {
+ }
+
+ QCheckBox::indicator:indeterminate:hover {
+ }
+
+ QCheckBox::indicator:indeterminate:pressed {
+ }
+ 
+
+/*------------------------------------------------------*/ 
+ QSlider::groove:horizontal { 
+ }
+
+ QSlider::handle:horizontal {
+	border: 1px solid gray;
+	color: gray;
+	background-color: rgb(75,75,90);
+ }	
+
+/*------------------------------------------------------*/
+QWidget
+{
+	background-color: rgb(75,75,90);
+	color: gray;
+	border: 1px solid gray;
+}

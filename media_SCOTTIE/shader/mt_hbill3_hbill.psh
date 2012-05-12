@@ -1,0 +1,18 @@
+
+struct PSIn
+{
+	float4 P : SV_Position;
+	float4 N : TEXCOORD0;
+	float4 C : TEXCOORD1;
+};
+
+PO1 main(PSIn i)
+{
+	PO1 r;
+	f4 n = normalize(i.N);
+	f1 dy = max(dot(f3(0,-1,0), n), 0);
+	f1 lz = sin(-i.P.y)*0.9;
+	f1 a = lz + lz*dy*0.6;
+	r.c0 = i.C;//f4(1,1,1,1);
+    return r;
+}

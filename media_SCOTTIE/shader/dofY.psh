@@ -1,0 +1,29 @@
+/** 
+* @brief DOF(pass2)
+* ==========================================
+*/
+
+Texture2D scene:register(t0);
+Texture2D depth:register(t1);
+/**/
+cbuffer Const2 : register(b2)
+{ 
+	f4 focusDepthRangeBlur;
+	f4 pack[3];
+};
+
+
+f4 main( ScreenVO input ):SV_Target0
+{
+	const float focalDepth = focusDepthRangeBlur.x;
+	const float focalRange = focusDepthRangeBlur.y;
+	const float blurpower  = focusDepthRangeBlur.z;
+
+    f2 uv = input.uv;
+    float drad = depth.Sample(SMP_LINER,uv).y - focalDepth*.5;
+    
+    drad = min(max(drad / focalRange, -PI), PI);
+    float dispersion = 0.5 - 0.5 * cos(drad);
+    return gaussY(scene,uv,dispersion * blurpower + 0.001);
+    
+}

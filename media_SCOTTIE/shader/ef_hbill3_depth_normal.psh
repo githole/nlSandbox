@@ -1,0 +1,25 @@
+/**
+* @brief 線形深度とスクリーンスペース法線を出力する
+*        ef_depth_normal.vshと合わせて利用する
+* RT0: R16G16B16A16_FLOAT(R:深度 GB:法線32bit)
+* C0:  未使用
+* C1:  未使用
+* C2:  未使用
+*/
+
+
+struct PSIn
+{
+	float4 P : SV_Position;
+	float4 N : TEXCOORD0;
+	float4 C : TEXCOORD1;
+};
+
+PO1 main(PSIn input)
+{
+	PO1 ret;
+	f4 d = input.P;
+	f4 n = input.N;
+	ret.c0 = f4(d.z/d.w,d.z,0,1);
+    return ret;
+}

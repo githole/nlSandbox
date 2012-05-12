@@ -1,0 +1,15 @@
+/**
+* ==========================================
+* @brief
+* ==========================================
+*/
+/* REPLACE ScreenVO,ScreenVO */
+
+Texture2D tex:register(t0);
+/**/
+f4 main( ScreenVO input ):SV_Target0
+{
+	f2 uv = input.uv;
+	f1 d = 1-length(uv-f2(0.5,0.5));
+	return f4(d,d,d+0.4*sceneTime.x,1);
+}

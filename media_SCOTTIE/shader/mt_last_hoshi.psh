@@ -1,0 +1,32 @@
+/**
+* @brief テスト用に指定したカラーでDiffuse出力をする
+*        db_diffuse.vshと合わせて利用する
+* RT0: R8G8B8A8
+* C0:  未使用
+* C1:  未使用
+* C2:  Ambient(Vec4)
+       Diffuse(Vec4)
+       LightDir(Vec4)
+*/
+/* REPLACE PO2,PO2 */
+/* REPLACE VO_EF_DEPTH_NORMAL,VO_EF_DEPTH_NORMAL */
+/* オブジェクト毎 */
+cbuffer Const2 : register(b2)
+{ 
+	f4 ambinet;
+	f4 diffuse;
+	f4 lightDir;
+	f4 pack;
+};
+/**/
+PO1 main(VO_POS_NORMAL_COLOR i)
+{
+	PO1 r;
+	f4 n = i.N;
+	r.c0 = ambinet + max(dot(n,lightDir),0)*diffuse;
+	r.c0 = lerp(f4(1,1,1,1) ,
+	f4(115/255.0,255/255.0,32/255.0,1),
+	 min(1,(abs(i.C.x) + abs(i.C.y) + abs(i.C.z)) * 5.0));
+	r.c0 = f4(99/255.0,45/255.0,255/255.0,1);
+    return r;
+}

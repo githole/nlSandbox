@@ -1,0 +1,19 @@
+/** 
+* ==========================================
+* @brief HBAOのブラーパス(pass2)
+* ==========================================
+*/
+/* REPLACE ScreenVO,ScreenVO */
+
+Texture2D ao:register(t0);
+//Texture2D scene:register(t1);
+Texture2D depth:register(t1);
+/**/
+f4 main( ScreenVO input ):SV_Target0
+{
+	uint w,h,lvl;
+    f2 uv = input.uv*2;
+    float dispersion = 2.0;
+    //return ao.Sample(SMP_LINER,uv).rrrr;
+    return AOGauss(ao,depth,uv,dispersion,1).rrrr;
+}

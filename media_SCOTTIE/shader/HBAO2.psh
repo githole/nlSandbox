@@ -1,0 +1,438 @@
+/** 
+* ==========================================
+* @brief HBAO
+* ==========================================
+*/
+cbuffer Const2 : register(b2)
+{
+  f4 c_Fov;
+  f4 c_ZNear;
+  f4 c_ZFar;
+  f4 c_StrengthAngleR;//xyz  
+}
+
+Texture2D depthNormal:register(t0);
+sampler PointClampSampler           : register(s0);
+sampler PointWrapSampler            : register(s1);
+
+// const values
+static const float2 g_AOResolution = float2(640,360); /* AOテクスチャのサイズ */
+static const float2 g_InvAOResolution = 1.0/g_AOResolution;
+static const float g_MaxRadiusPixels = 1.0f * min(1280,720); /* フルスクリーンのサイズ */
+static const float g_PowExponent = 2.0000f;
+static const float m_BlurSharpness = 1.0;
+//static const float g_BlurDepthThreshold = 1.0f * 0.832554611f * (g_ZNear / m_BlurSharpness);
+
+
+// default const value
+static float g_R = 0.3; /* レイの長さ？ */
+static const float g_Angle = 20.0;
+static float g_Strength = 1.0f;
+static const float g_ZNear = 0.1;
+static const float g_ZFar = 1000.0;
+static const float g_Fov = 20.89;/* nlsandboxからわたす */
+
+// const value
+static const int SAMPLE_FIRST_STEP = 1;
+static const int USE_NORMAL_FREE_HBAO = 0;
+static const int NUM_DIRECTIONS  = 16;
+static const int NUM_STEPS = 24;//16
+static const int RANDOM_TEXTURE_WIDTH = 4;
+
+
+static float  g_FovyRad = 3.141592*g_Fov/180.0;
+static float2 g_FocalLen = 
+			float2( 1.0/tan(g_FovyRad*0.5f)*(g_AOResolution.x/g_AOResolution.y),
+					1.0f / tan(g_FovyRad * 0.5f) );
+static float2 g_InvFocalLen =1.0/g_FocalLen;
+static float2 g_UVToViewA = float2(2.0f*g_InvFocalLen.x,-2.0f*g_InvFocalLen.y);
+static float2 g_UVToViewB = float2(-1.0f*g_InvFocalLen.x,1.0f*g_InvFocalLen.y);
+static float  g_R2 = g_R*g_R;
+static float  g_NegInvR2 = -1.0/g_R2;
+static float  g_AngleBias = PI*g_Angle/180.0;
+static float  g_TanAngleBias = tan(g_AngleBias);
+static float  g_LinA = 1.0f/g_ZFar - 1.0f/g_ZNear;
+static float  g_LinB = 1.0f/g_ZNear;
+
+
+struct PostProc_VSOut
+{
+    f4 pos1  : SV_Position;
+    f2 texUV : TEXCOORD0;
+};
+
+struct SSAO_VSOut
+{
+    float4 p  : SV_Position;
+    float2 uv : TEXCOORD0;
+    float4 FovyRFocal  : TEXCOORD1;
+    float4 AngleLin    : TEXCOORD2;
+    float4 UVToView    : TEXCOORD3;
+};
+
+float2 HBAO_PS11(PostProc_VSOut IN );
+
+f4 main( SSAO_VSOut i ):SV_Target0
+{
+	f2 uv = i.uv*2.0;
+	if (i.FovyRFocal.x != 0.0)
+	{
+		g_FovyRad  = i.FovyRFocal.x;
+		g_FocalLen = i.FovyRFocal.zw;
+		g_Strength = c_StrengthAngleR.x;
+		
+		g_UVToViewA = i.UVToView.xy;
+		g_UVToViewB = i.UVToView.zw;
+		g_R  = i.FovyRFocal.y;
+		g_R2 = i.FovyRFocal.y * i.FovyRFocal.y;
+		g_NegInvR2 = -1.0/i.FovyRFocal.y;
+		
+		g_AngleBias = i.AngleLin.x;
+		g_TanAngleBias = i.AngleLin.y;
+		g_LinA = i.AngleLin.z;
+		g_LinB = i.AngleLin.w;
+	}
+
+	PostProc_VSOut vo;
+	//vo.pos1 = f4(uv.x,uv.y*0.98,0,0);
+	vo.pos1 = f4(uv.x,uv.y,0,0);
+	vo.texUV = uv;
+	f2 ao = HBAO_PS11(vo);
+	return f4(ao.xxx,1);
+}
+
+//----------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------------
+float InvLength(float2 v)
+{
+    return rsqrt(dot(v,v));
+}
+
+//----------------------------------------------------------------------------------
+float Tangent(float3 P, float3 S)
+{
+    return (P.z - S.z) * InvLength(S.xy - P.xy);
+}
+
+//----------------------------------------------------------------------------------
+float3 UVToEye(float2 uv, float eye_z)
+{
+    uv = g_UVToViewA * uv + g_UVToViewB;
+    return float3(uv * eye_z, eye_z);
+}
+
+//----------------------------------------------------------------------------------
+float3 FetchEyePos(float2 uv)
+{
+    float z = depthNormal.SampleLevel(PointClampSampler, uv, 0).r;
+    z = 1.0f / (z * g_LinA + g_LinB);
+    return UVToEye(uv, z);
+}
+
+//----------------------------------------------------------------------------------
+float Length2(float3 v)
+{
+    return dot(v, v);
+}
+
+//----------------------------------------------------------------------------------
+float3 MinDiff(float3 P, float3 Pr, float3 Pl)
+{
+    float3 V1 = Pr - P;
+    float3 V2 = P - Pl;
+    return (Length2(V1) < Length2(V2)) ? V1 : V2;
+}
+
+//----------------------------------------------------------------------------------
+float Falloff(float d2)
+{
+    // 1 scalar mad instruction
+    return d2 * g_NegInvR2 + 1.0f;
+}
+
+//----------------------------------------------------------------------------------
+float2 SnapUVOffset(float2 uv)
+{
+    return round(uv * g_AOResolution) * g_InvAOResolution;
+}
+
+//----------------------------------------------------------------------------------
+float TanToSin(float x)
+{
+    return x * rsqrt(x*x + 1.0f);
+}
+
+//----------------------------------------------------------------------------------
+float3 TangentVector(float2 deltaUV, float3 dPdu, float3 dPdv)
+{
+    return deltaUV.x * dPdu + deltaUV.y * dPdv;
+}
+
+//----------------------------------------------------------------------------------
+float Tangent(float3 T)
+{
+    return -T.z * InvLength(T.xy);
+}
+
+//----------------------------------------------------------------------------------
+float BiasedTangent(float3 T)
+{
+    // Do not use atan() because it gets expanded by fxc to many math instructions
+    return Tangent(T) + g_TanAngleBias;
+}
+
+//#ifdef USE_NORMAL_FREE_HBAO
+//
+////----------------------------------------------------------------------------------
+//void IntegrateDirection(inout float ao, float3 P, float2 uv, float2 deltaUV,
+                         //float numSteps, float tanH, float sinH)
+//{
+    //for (float j = 1; j <= numSteps; ++j)
+    //{
+        //uv += deltaUV;
+        //float3 S = FetchEyePos(uv);
+        //float tanS = Tangent(P, S);
+        //float d2 = Length2(S - P);
+        //
+        //[branch]
+        //if ((d2 < g_R2) && (tanS > tanH))
+        //{
+            //// Accumulate AO between the horizon and the sample
+            //float sinS = TanToSin(tanS);
+            //ao += Falloff(d2) * (sinS - sinH);
+            //
+            //// Update the current horizon angle
+            //tanH = tanS;
+            //sinH = sinS;
+        //}
+    //}
+//}
+//
+////----------------------------------------------------------------------------------
+//float NormalFreeHorizonOcclusion(float2 deltaUV,
+                                 //float2 texelDeltaUV,
+                                 //float2 uv0,
+                                 //float3 P,
+                                 //float numSteps,
+                                 //float randstep)
+//{
+//
+    //float tanT = tan(-PI*0.5 + g_AngleBias);
+    //float sinT = TanToSin(tanT);
+//
+////#if SAMPLE_FIRST_STEP
+    //float ao1 = 0;
+//
+    //// Take a first sample between uv0 and uv0 + deltaUV
+    //float2 deltaUV1 = SnapUVOffset( randstep * deltaUV + texelDeltaUV );
+    //IntegrateDirection(ao1, P, uv0, deltaUV1, 1, tanT, sinT);
+    //IntegrateDirection(ao1, P, uv0, -deltaUV1, 1, tanT, sinT);
+//
+    //ao1 = max(ao1 * 0.5 - 1.0, 0.0);
+    //--numSteps;
+////#endif
+//
+    //float ao = 0;
+    //float2 uv = uv0 + SnapUVOffset( randstep * deltaUV );
+    //deltaUV = SnapUVOffset( deltaUV );
+    //IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
+//
+    //// Integrate opposite directions together
+    //deltaUV = -deltaUV;
+    //uv = uv0 + SnapUVOffset( randstep * deltaUV );
+    //IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
+//
+    //// Divide by 2 because we have integrated 2 directions together
+    //// Subtract 1 and clamp to remove the part below the surface
+////#if SAMPLE_FIRST_STEP
+    //return max(ao * 0.5 - 1.0, ao1);
+////#else
+    ////return max(ao * 0.5 - 1.0, 0.0);
+////#endif
+//}
+//
+//#else //USE_NORMAL_FREE_HBAO
+
+//----------------------------------------------------------------------------------
+float IntegerateOcclusion(float2 uv0,
+                          float2 snapped_duv,
+                          float3 P,
+                          float3 dPdu,
+                          float3 dPdv,
+                          inout float tanH)
+{
+    float ao = 0;
+
+    // Compute a tangent vector for snapped_duv
+    float3 T1 = TangentVector(snapped_duv, dPdu, dPdv);
+    float tanT = BiasedTangent(T1);
+    float sinT = TanToSin(tanT);
+
+    float3 S = FetchEyePos(uv0 + snapped_duv);
+    float tanS = Tangent(P, S);
+
+    float sinS = TanToSin(tanS);
+    float d2 = Length2(S - P);
+
+    if ((d2 < g_R2) && (tanS > tanT))
+    {
+        // Compute AO between the tangent plane and the sample
+        ao = Falloff(d2) * (sinS - sinT);
+
+        // Update the horizon angle
+        tanH = max(tanH, tanS);
+    }
+
+    return ao;
+}
+
+//----------------------------------------------------------------------------------
+float horizon_occlusion(float2 deltaUV,
+                        float2 texelDeltaUV,
+                        float2 uv0,
+                        float3 P,
+                        float numSteps,
+                        float randstep,
+                        float3 dPdu,
+                        float3 dPdv )
+{
+    float ao = 0;
+
+    // Randomize starting point within the first sample distance
+    float2 uv = uv0 + SnapUVOffset( randstep * deltaUV );
+
+    // Snap increments to pixels to avoid disparities between xy
+    // and z sample locations and sample along a line
+    deltaUV = SnapUVOffset( deltaUV );
+
+    // Compute tangent vector using the tangent plane
+    float3 T = deltaUV.x * dPdu + deltaUV.y * dPdv;
+
+    float tanH = BiasedTangent(T);
+
+//#if SAMPLE_FIRST_STEP
+    // Take a first sample between uv0 and uv0 + deltaUV
+    float2 snapped_duv = SnapUVOffset( randstep * deltaUV + texelDeltaUV );
+    ao = IntegerateOcclusion(uv0, snapped_duv, P, dPdu, dPdv, tanH);
+    --numSteps;
+//#endif
+
+    float sinH = tanH / sqrt(1.0f + tanH*tanH);
+
+    for (float j = 1; j <= numSteps; ++j)
+    {
+        uv += deltaUV;
+        float3 S = FetchEyePos(uv);
+        float tanS = Tangent(P, S);
+        float d2 = Length2(S - P);
+
+        // Use a merged dynamic branch
+        [branch]
+        if ((d2 < g_R2) && (tanS > tanH))
+        {
+            // Accumulate AO between the horizon and the sample
+            float sinS = tanS / sqrt(1.0f + tanS*tanS);
+            ao += Falloff(d2) * (sinS - sinH);
+
+            // Update the current horizon angle
+            tanH = tanS;
+            sinH = sinS;
+        }
+    }
+
+    return ao;
+}
+
+//#endif //USE_NORMAL_FREE_HBAO
+
+//----------------------------------------------------------------------------------
+float2 RotateDirections(float2 Dir, float2 CosSin)
+{
+    return float2(Dir.x*CosSin.x - Dir.y*CosSin.y,
+                  Dir.x*CosSin.y + Dir.y*CosSin.x);
+}
+
+//----------------------------------------------------------------------------------
+void ComputeSteps(inout float2 step_size_uv, inout float numSteps, float ray_radius_pix, float rand)
+{
+    // Avoid oversampling if NUM_STEPS is greater than the kernel radius in pixels
+    numSteps = min(NUM_STEPS, ray_radius_pix);
+
+    // Divide by Ns+1 so that the farthest samples are not fully attenuated
+    float step_size_pix = ray_radius_pix / (numSteps + 1);
+
+    // Clamp numSteps if it is greater than the max kernel footprint
+    float maxNumSteps = g_MaxRadiusPixels / step_size_pix;
+    if (maxNumSteps < numSteps)
+    {
+        // Use dithering to avoid AO discontinuities
+        numSteps = floor(maxNumSteps + rand);
+        numSteps = max(numSteps, 1);
+        step_size_pix = g_MaxRadiusPixels / numSteps;
+    }
+
+    // Step size in uv space
+    step_size_uv = step_size_pix * g_InvAOResolution;
+}
+
+//----------------------------------------------------------------------------------
+float2 HBAO_PS11(PostProc_VSOut IN )
+{
+    float3 P = FetchEyePos(IN.texUV);
+
+    // (cos(alpha),sin(alpha),jitter)
+    //float3 rand = rand(IN.pos1.xy * (time.xy * 0.01)/RANDOM_TEXTURE_WIDTH);
+    float3 rand = rand(IN.pos1.xy/RANDOM_TEXTURE_WIDTH);
+    //tRandom.Sample(PointWrapSampler,  / RANDOM_TEXTURE_WIDTH);
+
+    // Compute projection of disk of radius g_R into uv space
+    // Multiply by 0.5 to scale from [-1,1]^2 to [0,1]^2
+    float2 ray_radius_uv = 0.5 * g_R * g_FocalLen / P.z;
+    float ray_radius_pix = ray_radius_uv.x * g_AOResolution.x;
+    if (ray_radius_pix < 1) return 1.0;
+
+    float numSteps;
+    float2 step_size;
+    ComputeSteps(step_size, numSteps, ray_radius_pix, rand.z);
+
+    // Nearest neighbor pixels on the tangent plane
+    float3 Pr, Pl, Pt, Pb;
+    Pr = FetchEyePos(IN.texUV + float2(g_InvAOResolution.x, 0));
+    Pl = FetchEyePos(IN.texUV + float2(-g_InvAOResolution.x, 0));
+    Pt = FetchEyePos(IN.texUV + float2(0, g_InvAOResolution.y));
+    Pb = FetchEyePos(IN.texUV + float2(0, -g_InvAOResolution.y));
+
+    // Screen-aligned basis for the tangent plane
+    float3 dPdu = MinDiff(P, Pr, Pl);
+    float3 dPdv = MinDiff(P, Pt, Pb) * (g_AOResolution.y * g_InvAOResolution.x);
+
+    float ao = 0;
+    float d;
+    float alpha = 2.0f * PI / NUM_DIRECTIONS;
+
+    // this switch gets unrolled by the HLSL compiler
+//#if USE_NORMAL_FREE_HBAO
+    //for (d = 0; d < NUM_DIRECTIONS*0.5; ++d)
+    //{
+        //float angle = alpha * d;
+        //float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
+        //float2 deltaUV = dir * step_size.xy;
+        //float2 texelDeltaUV = dir * g_InvAOResolution;
+        //ao += NormalFreeHorizonOcclusion(deltaUV, texelDeltaUV, IN.texUV, P, numSteps, rand.z);
+    //}
+    //ao *= 2.0;
+//#else
+    for (d = 0; d < NUM_DIRECTIONS; ++d)
+    {
+         float angle = alpha * d;
+         float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
+         float2 deltaUV = dir * step_size.xy;
+         float2 texelDeltaUV = dir * g_InvAOResolution;
+         ao += horizon_occlusion(deltaUV, texelDeltaUV, IN.texUV, P, numSteps, rand.z, dPdu, dPdv);
+    }
+//#endif
+
+    ao = 1.0 - ao / NUM_DIRECTIONS * g_Strength;
+    return float2(ao, P.z);
+}

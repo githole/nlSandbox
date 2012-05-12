@@ -1,0 +1,46 @@
+/** 
+* ==========================================
+* @brief ガウスフィルタ
+* ==========================================
+*/
+/* REPLACE ScreenVO,ScreenVO */
+
+/**/
+Texture2D tex:register(t0);
+/**/
+f4 fch(f2 uv)
+{
+    return tex.Sample( SMP_LINER, uv );
+}
+/**/
+f4 main( ScreenVO input ):SV_Target0
+{
+	/* ボケ具合を調整 */
+	float dispersion = 10.0;
+	/**/
+	uint w,h,lvl;
+    f2 uv = input.uv;
+	tex.GetDimensions(0,w,h,lvl);
+    float total=0;
+    const int weight = 8;
+    float tbl[weight];
+    for(int i=0;i<weight;++i)
+    {
+        tbl[i] = exp(-0.5f*(i*i)/dispersion);
+        if(0==i) {total += tbl[i];}
+        else     {total += 2.0f*tbl[i];}
+	}
+	for(int i=0;i<weight;++i)
+	{
+		tbl[i]/=total;	
+	}    
+	/**/
+	return  tbl[0]*fch(uv) +
+			tbl[1]*(fch(uv+f2(2.0/w,0))+fch(uv+f2(2.0/w,0))) +
+			tbl[2]*(fch(uv+f2(4.0/w,0))+fch(uv+f2(4.0/w,0))) +
+			tbl[3]*(fch(uv+f2(6.0/w,0))+fch(uv+f2(6.0/w,0))) +
+			tbl[4]*(fch(uv+f2(8.0/w,0))+fch(uv+f2(8.0/w,0))) +
+			tbl[5]*(fch(uv+f2(10.0/w,0))+fch(uv+f2(10.0/w,0))) +
+			tbl[6]*(fch(uv+f2(12.0/w,0))+fch(uv+f2(12.0/w,0))) +
+			tbl[7]*(fch(uv+f2(14.0/w,0))+fch(uv+f2(14.0/w,0)));
+}
