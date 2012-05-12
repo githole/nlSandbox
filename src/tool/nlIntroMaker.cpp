@@ -346,10 +346,9 @@ static bool exportShaders( nlEngineContext* cxt  )
             fileStr.append( "       {\n");
             BOOST_FOREACH( const ShaderScript& script, shaderGroup.scripts )
             {
-                if(script.name)
-                {
-                    //printf("start[%s]\n",script.name);
-                }
+                 /* ãÛÇÃÉtÉ@ÉCÉãÇ≈Ç†ÇÈèÍçáÇÕ */
+                if( !script.name || !strcmp(script.name,"") )
+                { break; }
 
                 fileStr.append( "           \""+(QString(script.name)+"\",\"").toLocal8Bit() );
                 /*bool show = false;
