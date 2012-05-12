@@ -292,8 +292,9 @@ static bool exportScene( const nlArray<nlScene,MAX_SCENE_NUM>& scenes )
         line.sprintf("\t%d, /* num scenemap */ \n", scene.numSceneMap_ );
         dataFile.write( line.toLatin1() );
         /**/
-        //dataFile.write( "\t\t{\n" );
-        for( int j=0;j<MAX_SCENENODE_NUM;++j)
+        dataFile.write( "\t\t{\n" );
+        //for( int j=0;j<MAX_SCENENODE_NUM;++j)
+        for( int j=0;j<scene.numSceneMap_;++j)
         {
             nlSceneNode node = {};
             if( j < scene.sceneMaps_.size() )
@@ -301,7 +302,7 @@ static bool exportScene( const nlArray<nlScene,MAX_SCENE_NUM>& scenes )
                 node = scene.sceneMaps_[j];
             }
             /**/
-            line.sprintf("\t(nlSceneNode_t)%d,", node.type_ );
+            line.sprintf("\t\t(nlSceneNode_t)%d,", node.type_ );
             dataFile.write(line.toLatin1());
             for( int k=0;k<node.prevNode_.size();++k)
             {
@@ -324,6 +325,7 @@ static bool exportScene( const nlArray<nlScene,MAX_SCENE_NUM>& scenes )
             /**/
             dataFile.write( "\n" );
         }
+        dataFile.write( "\t},\n" );
     }
     dataFile.write( "};\n" );
     dataFile.write( "\n" );
