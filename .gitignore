@@ -5,7 +5,14 @@ project/nlSandbox/Debug/*
 project/intro/Demo/*
 project/nl_stduio64.ncb
 project/nl_stduio64.suo
+project/Demo/*
+project/Release/*
+project/intro/Release/*
 bin/nlSandbox.exe
 bin/nlSandbox_d.exe
 bin/intro.exe
+bin/nlSandbox_d.exp
+bin/nlSandbox_d.ilk
+bin/nlSandbox_d.lib
+bin/nlSandbox_d.pdb
 src/generated/*
